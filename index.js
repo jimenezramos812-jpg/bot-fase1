@@ -1,11 +1,15 @@
 ﻿const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { GoogleGenAI } = require('@google/generative-ai');
 const pino = require('pino');
 const http = require('http');
+
+// Configuración de Gemini AI (usará la variable de entorno GEMINI_API_KEY)
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot de WhatsApp con Baileys activo 24/7\n');
+    res.end('Bot de WhatsApp con Baileys y Gemini AI activo 24/7\n');
 });
 
 server.listen(PORT, () => {
@@ -46,7 +50,7 @@ async function connectToWhatsApp() {
             console.log('Conexión cerrada, reconectando...');
             if (shouldReconnect) { connectToWhatsApp(); }
         } else if (connection === 'open') {
-            console.log('¡Conectado a WhatsApp exitosamente y listo para IA!');
+            console.log('¡Conectado a WhatsApp exitosamente y listo con Gemini AI!');
         }
     });
 
@@ -58,9 +62,26 @@ async function connectToWhatsApp() {
             if (!msg.message || msg.key.fromMe) continue;
             const senderID = msg.key.remoteJid;
             const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+            
             if (text) {
-                console.log('Mensaje de ' + senderID + ': ' + text);
-                await sock.sendMessage(senderID, { text: 'Hola, recibí tu mensaje: "' + text + '". (Pronto conectado con IA)' });
+                console.log('Mensaje recibido de ' + senderID + ': ' + text);
+                try {
+                    // Generar respuesta inteligente usando Gemini
+                    const response = await ai.models.generateContent({
+                        model: 'gemini-2.5-flash',
+                        contents: text,
+                        config: {
+                            systemInstruction: "Eres un asistente virtual administrativo profesional y amable en WhatsApp. Responde de forma concisa y útil."
+                        }
+                    });
+
+                    const replyText = response.text || "Hola, recibí tu mensaje pero no pude generar una respuesta en este momento.";
+                    await sock.sendMessage(senderID, { text: replyText });
+                    console.log('Respuesta de IA enviada con éxito.');
+                } catch (error) {
+                    console.error('Error al generar respuesta con Gemini:', error);
+                    await sock.sendMessage(senderID, { text: 'Hola, ocurrió un pequeño error procesando tu mensaje con la IA.' });
+                }
             }
         }
     });
