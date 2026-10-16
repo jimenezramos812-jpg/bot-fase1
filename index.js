@@ -3,7 +3,6 @@ const qrcode = require('qrcode-terminal');
 const pino = require('pino');
 const http = require('http');
 
-// Servidor HTTP web para cumplir con el requisito de Render
 const PORT = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -11,7 +10,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log(Servidor HTTP escuchando en el puerto );
+    console.log('Servidor HTTP escuchando en el puerto ' + PORT);
 });
 
 async function connectToWhatsApp() {
