@@ -1,5 +1,4 @@
 ﻿const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
-const qrcode = require('qrcode-terminal');
 const pino = require('pino');
 const http = require('http');
 
@@ -18,20 +17,34 @@ async function connectToWhatsApp() {
     
     const sock = makeWASocket({
         auth: state,
-        printQRInTerminal: true,
+        printQRInTerminal: false,
         logger: pino({ level: 'silent' })
     });
 
-    sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update;
-        if (qr) {
-            console.log('Escanea este código QR con WhatsApp:');
-            qrcode.generate(qr, { small: true });
+    if (!sock.authState.creds.registered) {
+        const phoneNumber = process.env.PHONE_NUMBER;
+        if (phoneNumber) {
+            setTimeout(async () => {
+                try {
+                    const code = await sock.requestPairingCode(phoneNumber);
+                    console.log('========================================');
+                    console.log('TU CÓDIGO DE VINCULACIÓN ES: ' + code);
+                    console.log('========================================');
+                } catch (err) {
+                    console.log('Error al solicitar código de emparejamiento:', err);
+                }
+            }, 5000);
+        } else {
+            console.log('AVISO: Configura la variable de entorno PHONE_NUMBER en Render.');
         }
+    }
+
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect } = update;
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('Conexión cerrada, reconectando...');
-            if (shouldReconnect) { connectToWhatsApp(); }
+            if (shouldReconnect { connectToWhatsApp(); }
         } else if (connection === 'open') {
             console.log('¡Conectado a WhatsApp exitosamente y listo para IA!');
         }
