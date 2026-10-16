@@ -1,10 +1,10 @@
 ﻿const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
-const { GoogleGenAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const pino = require('pino');
 const http = require('http');
 
-// Configuración de Gemini AI (usará la variable de entorno GEMINI_API_KEY)
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Configuración correcta de Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
@@ -66,16 +66,15 @@ async function connectToWhatsApp() {
             if (text) {
                 console.log('Mensaje recibido de ' + senderID + ': ' + text);
                 try {
-                    // Generar respuesta inteligente usando Gemini
-                    const response = await ai.models.generateContent({
-                        model: 'gemini-2.5-flash',
-                        contents: text,
-                        config: {
-                            systemInstruction: "Eres un asistente virtual administrativo profesional y amable en WhatsApp. Responde de forma concisa y útil."
-                        }
+                    const model = genAI.getGenerativeModel({ 
+                        model: 'gemini-1.5-flash',
+                        systemInstruction: "Eres un asistente virtual administrativo profesional y amable en WhatsApp. Responde de forma concisa y útil."
                     });
 
-                    const replyText = response.text || "Hola, recibí tu mensaje pero no pude generar una respuesta en este momento.";
+                    const result = await model.generateContent(text);
+                    const response = await result.response;
+                    const replyText = response.text() || "Hola, recibí tu mensaje pero no pude generar una respuesta en este momento.";
+                    
                     await sock.sendMessage(senderID, { text: replyText });
                     console.log('Respuesta de IA enviada con éxito.');
                 } catch (error) {
